@@ -59,6 +59,21 @@
         </div>
     </div>
 
+    <div id="export-period-modal" class="modal-overlay" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;padding:16px;background:var(--bg-overlay);" onclick="if(event.target===this)closeModal('export-period-modal')">
+        <div class="modal-content" style="max-width:440px;width:100%;padding:24px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+            <div class="flex items-start justify-between gap-4 mb-2"><div><h2 class="text-lg font-bold" style="color:var(--text-primary);">Export Peralatan Kantor</h2><p class="text-sm mt-1" style="color:var(--text-muted);">Pilih periode tanggal pembelian yang akan diexport.</p></div><button type="button" onclick="closeModal('export-period-modal')" class="p-1.5 rounded-xl" style="color:var(--text-muted);background:none;border:none;cursor:pointer;">Tutup</button></div>
+            <form method="GET" action="{{ route('admin.export') }}" class="mt-5">
+                <input type="hidden" name="type" value="peralatan-kantor"><input type="hidden" name="filter" value="all">
+                @if($activeTim)<input type="hidden" name="tim" value="{{ $activeTim }}">@endif
+                <div class="space-y-2">
+                    @foreach(['harian' => 'Harian (hari ini)', 'mingguan' => 'Mingguan (minggu ini)', 'bulanan' => 'Bulanan (bulan ini)'] as $period => $label)
+                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="{{ $period }}" {{ $period === 'bulanan' ? 'checked' : '' }}><span class="text-sm font-medium">{{ $label }}</span></label>
+                    @endforeach
+                </div>
+                <div class="flex justify-end gap-2 mt-5"><button type="button" onclick="closeModal('export-period-modal')" class="btn btn-secondary">Batal</button><button type="submit" class="btn btn-primary">Download Excel</button></div>
+            </form>
+        </div>
+    </div>
     {{-- Alert Kondisi Peralatan --}}
     @php
         $perluServisCount = $alertItems->where('kondisi', 'perlu_servis')->count();
@@ -99,7 +114,7 @@
 
     {{-- Tabel --}}
     <div class="gaming-card" style="overflow:visible;">
-        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-color);">
+        <div id="asset-card-header" class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-color);">
             <div>
                 <div style="font-weight:600;font-size:0.8rem;color:var(--text-primary);">Peralatan Kantor</div>
                 <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;font-weight:400;">Inventaris peralatan kantor milik perusahaan.</div>
@@ -121,7 +136,7 @@
                 @endif
             </div>
         </div>
-        <div class="px-5 py-2.5 flex flex-wrap items-center gap-3" style="border-bottom:1px solid var(--border-color);">
+        <div id="asset-toolbar" class="px-5 py-2.5 flex flex-wrap items-center gap-3" style="border-bottom:1px solid var(--border-color);">
             <div class="relative flex-1 min-w-[200px] max-w-[260px]">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -137,7 +152,7 @@
                     </svg>
                     Import Excel
                 </button>
-                <a href="{{ route('admin.export', ['type' => 'peralatan-kantor', 'filter' => 'all'] + ($activeTim ? ['tim' => $activeTim] : [])) }}" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Export</a>
+                <button type="button" onclick="openModal('export-period-modal')" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z"/></svg>Export</button>
                 @if(auth()->user()->role === 'admin')
                 <button type="button" onclick="confirmResetData()" class="btn btn-sm inline-flex items-center gap-1.5" style="color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -148,12 +163,12 @@
                 <div class="filter-dropdown-wrap" style="position:relative;">
                 <button type="button" onclick="toggleFilterMenu(event)" class="filter-btn"
                     style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);outline:none;white-space:nowrap;">
-                    <span id="filter-label">{{ $kondisi && $kondisi !== 'all' ? ucwords(str_replace('_', ' ', $kondisi)) : 'Semua Kondisi' }}</span>
+                    <span id="filter-label">{{ $range ? ['harian' => 'Hari Ini', 'mingguan' => 'Minggu Ini', 'bulanan' => 'Bulan Ini'][$range].' · ' : '' }}{{ $kondisi && $kondisi !== 'all' ? ucwords(str_replace('_', ' ', $kondisi)) : 'Semua Kondisi' }}</span>
                     <svg class="w-3.5 h-3.5" style="color:var(--text-muted);flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                <div id="filter-menu" class="filter-menu" style="display:none;position:absolute;right:0;top:100%;z-index:40;min-width:150px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,0.15);margin-top:4px;">
+                <div id="filter-menu" class="filter-menu" style="display:none;position:absolute;right:0;top:100%;z-index:40;min-width:150px;max-height:70vh;overflow-y:auto;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,0.15);margin-top:4px;">
                     <button type="button" data-value="all" onclick="setFilter('all')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--bg-surface-2)'" onmouseout="this.style.background='none'">Semua Kondisi</button>
                     <button type="button" data-value="baik" onclick="setFilter('baik')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--bg-surface-2)'" onmouseout="this.style.background='none'">Kondisi Baik</button>
                     <button type="button" data-value="perlu_servis" onclick="setFilter('perlu_servis')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--bg-surface-2)'" onmouseout="this.style.background='none'">Perlu Servis</button>
@@ -163,6 +178,12 @@
                         <button type="button" data-value="{{ $opt }}" onclick="setFilter('{{ $opt }}')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;{{ $kondisi === $opt ? 'color:#93c5fd;font-weight:700;' : 'color:var(--text-primary);font-weight:400;' }}border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--bg-surface-2)'" onmouseout="this.style.background='none'">{{ ucwords(str_replace('_', ' ', $opt)) }}</button>
                         @endif
                     @endforeach
+                    <div style="margin:5px 8px;border-top:1px solid var(--border-color);"></div>
+                    <div style="padding:6px 12px 3px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);">WAKTU INPUT</div>
+                    <button type="button" onclick="setDateRange('')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;">Semua Waktu</button>
+                    <button type="button" onclick="setDateRange('harian')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;">Hari Ini</button>
+                    <button type="button" onclick="setDateRange('mingguan')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;">Minggu Ini</button>
+                    <button type="button" onclick="setDateRange('bulanan')" style="display:block;width:100%;text-align:left;padding:7px 12px;border:none;background:none;font-size:13px;color:var(--text-primary);border-radius:6px;cursor:pointer;">Bulan Ini</button>
                 </div>
                 </div>
                 <div class="filter-dropdown-wrap" style="position:relative;">
@@ -1057,6 +1078,75 @@
     height: auto;
 }
 @media (max-width: 640px) {
+    #asset-card-header {
+        align-items: stretch !important;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px !important;
+    }
+    #asset-card-header > div:last-child {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    #asset-card-header > div:last-child button {
+        justify-content: center;
+        min-width: 0;
+        white-space: normal;
+    }
+    #asset-toolbar {
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px !important;
+    }
+    #asset-toolbar > .relative {
+        flex: 1 1 100%;
+        max-width: none !important;
+        min-width: 0;
+    }
+    #asset-toolbar > .flex.items-center {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+        margin-left: 0 !important;
+    }
+    #asset-toolbar > .flex.items-center > button,
+    #asset-toolbar > .flex.items-center > .filter-dropdown-wrap > button {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    #asset-toolbar .filter-dropdown-wrap {
+        min-width: 0;
+    }
+    #asset-toolbar .filter-dropdown-wrap > div[id$="-menu"] {
+        left: 0;
+        right: auto !important;
+        min-width: min(220px, calc(100vw - 40px)) !important;
+    }
+    #item-table {
+        min-width: 2200px !important;
+    }
+    #export-period-modal {
+        padding: 12px !important;
+        overflow-y: auto;
+    }
+    #export-period-modal .modal-content {
+        padding: 18px !important;
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+    }
+    #export-period-modal form > div:last-child {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    #export-period-modal form > div:last-child button {
+        width: 100%;
+        justify-content: center;
+    }
     .detail-media-wrap {
         flex-direction: column;
     }
@@ -2518,6 +2608,13 @@ function setFilter(value) {
     const url = new URL(window.location.href);
     if (value === 'all') url.searchParams.delete('kondisi');
     else url.searchParams.set('kondisi', value);
+    window.location.href = url.toString();
+}
+
+function setDateRange(value) {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set('range', value);
+    else url.searchParams.delete('range');
     window.location.href = url.toString();
 }
 

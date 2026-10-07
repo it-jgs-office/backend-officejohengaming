@@ -48,7 +48,7 @@ class ExportController extends Controller
             'digital-assets' => fn () => $this->digitalAssetsExport($filter),
             'sim-cards' => fn () => $this->simCardsExport($filter),
             'sosial-media' => fn () => $this->sosialMediaExport($filter),
-            'peralatan-kantor' => fn () => $this->peralatanKantorExport($filter, $request->query('tim')),
+            'peralatan-kantor' => fn () => $this->peralatanKantorExport($filter, $request->query('tim'), $request->query('range')),
             'aset-tim' => fn () => $this->asetTimExport($request),
             'aset-mes' => fn () => $this->asetMesExport($filter),
             'ruko' => fn () => $this->rukoExport($filter),
@@ -315,9 +315,16 @@ class ExportController extends Controller
         );
     }
 
-    protected function peralatanKantorExport($filter = 'all', ?string $tim = null)
+    protected function peralatanKantorExport($filter = 'all', ?string $tim = null, ?string $range = null)
     {
         $query = PeralatanKantor::query()->ofTim($tim)->orderBy('nama_barang');
+        if ($range === 'harian') {
+            $query->whereDate('tanggal_pembelian', Carbon::today());
+        } elseif ($range === 'mingguan') {
+            $query->whereBetween('tanggal_pembelian', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+        } elseif ($range === 'bulanan') {
+            $query->whereBetween('tanggal_pembelian', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]);
+        }
         if ($filter !== 'all') {
             $query->where('kondisi', $filter);
         }

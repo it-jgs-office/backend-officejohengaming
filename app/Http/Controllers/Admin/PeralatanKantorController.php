@@ -19,6 +19,9 @@ class PeralatanKantorController extends Controller
         $activeTim = $request->input('tim');
         $search = trim((string) $request->input('search', ''));
         $kondisi = $request->input('kondisi', '');
+        $range = in_array($request->input('range'), ['harian', 'mingguan', 'bulanan'], true)
+            ? $request->input('range')
+            : '';
 
         $query = PeralatanKantor::query()->ofTim($activeTim);
 
@@ -32,6 +35,19 @@ class PeralatanKantorController extends Controller
         }
         if ($kondisi && $kondisi !== 'all') {
             $query->where('kondisi', $kondisi);
+        }
+        if (in_array($range, ['harian', 'mingguan', 'bulanan'], true)) {
+            $start = match ($range) {
+                'harian' => now()->startOfDay(),
+                'mingguan' => now()->startOfWeek(),
+                'bulanan' => now()->startOfMonth(),
+            };
+            $end = match ($range) {
+                'harian' => now()->endOfDay(),
+                'mingguan' => now()->endOfWeek(),
+                'bulanan' => now()->endOfMonth(),
+            };
+            $query->whereBetween('created_at', [$start, $end]);
         }
 
         $allItems = (clone $query)->orderBy('created_at', 'desc')->get();
@@ -106,6 +122,7 @@ class PeralatanKantorController extends Controller
             'showAll' => $showAll,
             'search' => $search,
             'kondisi' => $kondisi,
+            'range' => $range,
         ]);
     }
 
