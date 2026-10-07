@@ -30,10 +30,12 @@ class AssetSayaController extends Controller
 
     public function index(Request $request)
     {
-        $userName = auth()->user()->name;
+        $user = auth()->user();
+        $userName = $user->name;
+        $userIdentifiers = array_values(array_unique(array_filter([$user->name, $user->username])));
         $userId = auth()->id();
 
-        $assets = $this->getMyAssets($userName, $userId);
+        $assets = $this->getMyAssets($userName, $userId, $userIdentifiers);
 
         if ($search = $request->input('search')) {
             $assets = $assets->filter(fn ($a) => str_contains(strtolower($a['nama_aset']), strtolower($search))
@@ -168,7 +170,7 @@ class AssetSayaController extends Controller
         return redirect()->route('koordinator.asset-saya.index')->with('success', 'Aset berhasil dihapus.');
     }
 
-    private function getMyAssets(string $userName, int $userId): Collection
+    private function getMyAssets(string $userName, int $userId, array $userIdentifiers): Collection
     {
         $assets = collect();
 
@@ -185,7 +187,11 @@ class AssetSayaController extends Controller
         );
 
         $assets = $assets->merge(
-            SosialMedia::where('pic', $userName)->get()->map(fn ($s) => $this->mapItem($s, 'Sosial Media', $s->nama, $s->username, $s->platform, $s->pic, '-', null, $s->created_at, $s->status === 'aktif' ? 'Aktif' : 'Nonaktif'))
+            SosialMedia::where(function ($query) use ($userIdentifiers) {
+                foreach ($userIdentifiers as $identifier) {
+                    $query->orWhereRaw('LOWER(TRIM(pic)) = ?', [mb_strtolower(trim($identifier))]);
+                }
+            })->get()->map(fn ($s) => $this->mapItem($s, 'Sosial Media', $s->nama, $s->username, $s->platform, $s->pic, '-', null, $s->created_at, $s->status === 'aktif' ? 'Aktif' : 'Nonaktif'))
         );
 
         $assets = $assets->merge(

@@ -15,7 +15,6 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Conditional;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Operator;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class DataExport implements FromCollection, WithCustomStartCell, WithEvents, WithHeadings, WithStyles, WithTitle
@@ -139,7 +138,7 @@ class DataExport implements FromCollection, WithCustomStartCell, WithEvents, Wit
 
                         $conditional = new Conditional;
                         $conditional->setConditionType(Conditional::CONDITION_CELLIS);
-                        $conditional->setOperatorType(Operator::OPERATOR_EQUAL);
+                        $conditional->setOperatorType(Conditional::OPERATOR_EQUAL);
                         $conditional->addCondition('"'.$cell['value'].'"');
                         $conditional->getStyle()->getFill()
                             ->setFillType(Fill::FILL_SOLID)

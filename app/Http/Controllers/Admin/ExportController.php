@@ -37,6 +37,13 @@ class ExportController extends Controller
         $jenis = $request->query('jenis');
         $filter = $request->query('filter', 'all');
 
+        if ($type === 'peralatan-kantor' && $request->query('range') === 'mingguan') {
+            $request->validate([
+                'week_start' => ['required', 'date'],
+                'week_end' => ['required', 'date', 'after_or_equal:week_start'],
+            ]);
+        }
+
         $exports = [
             'assets' => fn () => $this->assetsExport($filter),
             'users' => fn () => $this->usersExport($filter),
@@ -48,7 +55,7 @@ class ExportController extends Controller
             'digital-assets' => fn () => $this->digitalAssetsExport($filter),
             'sim-cards' => fn () => $this->simCardsExport($filter),
             'sosial-media' => fn () => $this->sosialMediaExport($filter),
-            'peralatan-kantor' => fn () => $this->peralatanKantorExport($filter, $request->query('tim'), $request->query('range')),
+            'peralatan-kantor' => fn () => $this->peralatanKantorExport($filter, $request->query('tim'), $request->query('range'), $request->query('date'), $request->query('week_start'), $request->query('week_end'), $request->query('month')),
             'aset-tim' => fn () => $this->asetTimExport($request),
             'aset-mes' => fn () => $this->asetMesExport($filter),
             'ruko' => fn () => $this->rukoExport($filter),
@@ -315,15 +322,20 @@ class ExportController extends Controller
         );
     }
 
-    protected function peralatanKantorExport($filter = 'all', ?string $tim = null, ?string $range = null)
+    protected function peralatanKantorExport($filter = 'all', ?string $tim = null, ?string $range = null, ?string $date = null, ?string $weekStart = null, ?string $weekEnd = null, ?string $month = null)
     {
         $query = PeralatanKantor::query()->ofTim($tim)->orderBy('nama_barang');
         if ($range === 'harian') {
-            $query->whereDate('tanggal_pembelian', Carbon::today());
+            $selectedDate = Carbon::parse($date ?: Carbon::today()->toDateString());
+            $query->whereDate('created_at', $selectedDate);
         } elseif ($range === 'mingguan') {
-            $query->whereBetween('tanggal_pembelian', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+            $query->whereBetween('created_at', [
+                Carbon::parse($weekStart)->startOfDay(),
+                Carbon::parse($weekEnd)->endOfDay(),
+            ]);
         } elseif ($range === 'bulanan') {
-            $query->whereBetween('tanggal_pembelian', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]);
+            $selectedMonth = Carbon::createFromFormat('Y-m', $month ?: Carbon::now()->format('Y-m'));
+            $query->whereBetween('created_at', [$selectedMonth->copy()->startOfMonth(), $selectedMonth->copy()->endOfMonth()]);
         }
         if ($filter !== 'all') {
             $query->where('kondisi', $filter);

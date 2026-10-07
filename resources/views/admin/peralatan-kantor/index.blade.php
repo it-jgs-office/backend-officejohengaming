@@ -66,10 +66,34 @@
                 <input type="hidden" name="type" value="peralatan-kantor"><input type="hidden" name="filter" value="all">
                 @if($activeTim)<input type="hidden" name="tim" value="{{ $activeTim }}">@endif
                 <div class="space-y-2">
-                    @foreach(['harian' => 'Harian (hari ini)', 'mingguan' => 'Mingguan (minggu ini)', 'bulanan' => 'Bulanan (bulan ini)'] as $period => $label)
-                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="{{ $period }}" {{ $period === 'bulanan' ? 'checked' : '' }}><span class="text-sm font-medium">{{ $label }}</span></label>
-                    @endforeach
+                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="all"><span class="text-sm font-medium">Semua data (tanpa batas periode)</span></label>
+                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="harian"><span class="text-sm font-medium">Harian</span></label>
+                    <div data-export-period="harian" class="pl-9 pb-2" hidden><label for="export-date" class="block text-xs font-medium mb-1" style="color:var(--text-muted);">Tanggal input</label><input id="export-date" type="date" name="date" value="{{ now()->toDateString() }}" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);color:var(--text-primary);" disabled></div>
+                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="mingguan"><span class="text-sm font-medium">Mingguan</span></label>
+                    <div data-export-period="mingguan" class="pl-9 pb-2 space-y-2" hidden>
+                        <div><label for="export-week-start" class="block text-xs font-medium mb-1" style="color:var(--text-muted);">Tanggal awal</label><input id="export-week-start" type="date" name="week_start" value="{{ now()->startOfWeek()->toDateString() }}" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);color:var(--text-primary);" disabled></div>
+                        <div><label for="export-week-end" class="block text-xs font-medium mb-1" style="color:var(--text-muted);">Tanggal akhir</label><input id="export-week-end" type="date" name="week_end" value="{{ now()->endOfWeek()->toDateString() }}" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);color:var(--text-primary);" disabled></div>
+                    </div>
+                    <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style="border:1px solid var(--border-color);color:var(--text-primary);"><input type="radio" name="range" value="bulanan" checked><span class="text-sm font-medium">Bulanan</span></label>
+                    <div data-export-period="bulanan" class="pl-9 pb-2"><label for="export-month" class="block text-xs font-medium mb-1" style="color:var(--text-muted);">Bulan input</label><input id="export-month" type="month" name="month" value="{{ now()->format('Y-m') }}" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);color:var(--text-primary);"></div>
                 </div>
+                <script>
+                    document.querySelectorAll('#export-period-modal input[name="range"]').forEach((radio) => {
+                        radio.addEventListener('change', () => {
+                            document.querySelectorAll('#export-period-modal [data-export-period]').forEach((field) => {
+                                const active = field.dataset.exportPeriod === radio.value;
+                                field.hidden = !active;
+                                const input = field.querySelector('input');
+                                input.disabled = !active;
+                                input.required = active;
+                            });
+                        });
+                    });
+                    const weekStart = document.getElementById('export-week-start');
+                    const weekEnd = document.getElementById('export-week-end');
+                    weekStart.addEventListener('change', () => { weekEnd.min = weekStart.value; });
+                    weekEnd.addEventListener('change', () => { weekStart.max = weekEnd.value; });
+                </script>
                 <div class="flex justify-end gap-2 mt-5"><button type="button" onclick="closeModal('export-period-modal')" class="btn btn-secondary">Batal</button><button type="submit" class="btn btn-primary">Download Excel</button></div>
             </form>
         </div>
