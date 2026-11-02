@@ -23,7 +23,7 @@ class PeralatanKantorController extends Controller
             ? $request->input('range')
             : '';
 
-        $query = PeralatanKantor::query()->ofTim($activeTim);
+        $query = PeralatanKantor::query()->with(['maintenances.creator:id,name'])->ofTim($activeTim);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -284,6 +284,25 @@ class PeralatanKantorController extends Controller
         return response()->json($this->serializeItem($item));
     }
 
+    public function storeMaintenance(Request $request, PeralatanKantor $peralatanKantor)
+    {
+        $data = $request->validate([
+            'maintenance_date' => ['required', 'date'],
+            'description' => ['required', 'string', 'max:5000'],
+            'cost' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'vendor' => ['nullable', 'string', 'max:255'],
+            'next_maintenance_date' => ['nullable', 'date', 'after_or_equal:maintenance_date'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $peralatanKantor->maintenances()->create($data + ['created_by' => $request->user()->id]);
+
+        return response()->json([
+            'message' => 'Riwayat servis berhasil disimpan.',
+            'item' => $this->serializeItem($peralatanKantor->fresh()),
+        ], 201);
+    }
+
     public function showJson(PeralatanKantor $peralatanKantor)
     {
         return response()->json($this->serializeItem($peralatanKantor));
@@ -291,6 +310,20 @@ class PeralatanKantorController extends Controller
 
     protected function serializeItem(PeralatanKantor $i): array
     {
+        $maintenanceRecords = $i->relationLoaded('maintenances')
+            ? $i->maintenances
+            : $i->maintenances()->with('creator:id,name')->get();
+        $maintenanceHistory = $maintenanceRecords
+            ->map(fn ($record) => [
+                'id' => $record->id,
+                'maintenance_date' => $record->maintenance_date?->format('Y-m-d'),
+                'description' => $record->description,
+                'cost' => $record->cost,
+                'vendor' => $record->vendor,
+                'next_maintenance_date' => $record->next_maintenance_date?->format('Y-m-d'),
+                'notes' => $record->notes,
+                'created_by' => $record->creator?->name,
+            ])->values();
         $masaBarang = max($i->estimasi_waktu_barang ?: 360, 1);
         $penyusutanPerHari = $i->nilai / $masaBarang;
         $waktuPakai = max((int) $i->waktu_pakai_per_hari, 1);
@@ -330,6 +363,8 @@ class PeralatanKantorController extends Controller
             'jabatan_atasan' => $i->jabatan_atasan,
             'kondisi' => $i->kondisi,
             'barcode_ditempel' => (bool) $i->barcode_ditempel,
+            'last_maintenance_date' => $maintenanceHistory->first()['maintenance_date'] ?? null,
+            'maintenance_history' => $maintenanceHistory,
         ];
     }
 

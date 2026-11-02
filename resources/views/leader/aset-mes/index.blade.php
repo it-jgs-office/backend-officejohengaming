@@ -2,7 +2,7 @@
 @section('body-class', 'page-leader page-leader-aset-mes')
 @section('title', 'Aset MES Saya')
 @section('page-title', 'Operasional > Aset MES')
-@section('page-subtitle', 'Daftar aset MES Putra & Putri yang menjadi tanggung jawab saya')
+@section('page-subtitle', 'Daftar aset MES yang menjadi tanggung jawab saya')
 @section('sidebar-menu') @include('partials.sidebar-leader') @endsection
 
 @section('content')
@@ -177,6 +177,38 @@
         <div class="px-5 py-3" style="border-top:1px solid var(--border-color);">{{ $assetsPutri->links() }}</div>
         @endif
     </div>
+    @foreach($additionalCategories as $kategori => $group)
+    <div class="gaming-card" style="overflow:visible;">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-color);">
+            <div>
+                <div style="font-weight:600;font-size:0.85rem;color:var(--text-primary);">{{ $group['label'] }}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">Aset {{ $group['label'] }} yang menjadi tanggung jawab Anda.</div>
+            </div>
+            <button type="button" onclick="openCreateModal('{{ $kategori }}')" class="btn btn-primary btn-sm">Tambah Aset</button>
+        </div>
+        <div class="px-6 py-2.5" style="border-bottom:1px solid var(--border-color);">
+            <form method="GET" action="{{ route('koordinator.aset-mes.index') }}" class="max-w-[260px]">
+                <input type="text" name="search_{{ $kategori }}" value="{{ $group['search'] }}" placeholder="Cari aset..." class="w-full px-3 py-1.5 rounded-lg text-xs" style="background:var(--bg-surface);border:1px solid var(--border-color);color:var(--text-primary);">
+            </form>
+        </div>
+        <div class="table-responsive">
+            <table class="gaming-table min-w-[700px]"><thead><tr><th>No</th><th>Nama Aset</th><th>Jumlah</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+                <tbody>
+                @forelse($group['assets'] as $a)
+                    <tr><td>{{ $group['assets']->firstItem() + $loop->index }}</td><td>{{ $a->nama_aset }}</td><td>{{ $a->jumlah }}</td><td>{{ $a->keterangan ?? '-' }}</td>
+                        <td class="whitespace-nowrap"><button type="button" onclick="openDetailModal({{ $a->id }})" class="btn btn-secondary btn-sm">Detail</button> <button type="button" onclick="openEditModal({{ $a->id }})" class="btn btn-secondary btn-sm">Edit</button>
+                            <form method="POST" action="{{ route('koordinator.aset-mes.destroy', $a) }}" style="display:inline" onsubmit="confirmSubmit(event, this)" data-confirm="Hapus aset ini?">@csrf @method('DELETE')<button class="btn btn-secondary btn-sm" type="submit">Hapus</button></form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada data aset.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($group['assets']->hasPages())<div class="px-5 py-3">{{ $group['assets']->links() }}</div>@endif
+    </div>
+    @endforeach
 </div>
 
 {{-- Modal Tambah / Edit --}}
@@ -196,6 +228,8 @@
                         <select name="kategori" id="f-kategori" required class="gaming-input gaming-select">
                             <option value="putra">Mes Putra</option>
                             <option value="putri">Mes Putri</option>
+                            <option value="koordinator">MES Koordinator</option>
+                            <option value="johen_streamer">MES Johen Streamer</option>
                         </select>
                     </div>
                     <div class="field-group">
@@ -281,11 +315,15 @@
 <script>
 const assets = @json($assetsJson);
 
+function kategoriLabel(kategori) {
+    return ({putra:'Mes Putra', putri:'Mes Putri', koordinator:'MES Koordinator', johen_streamer:'MES Johen Streamer'})[kategori] || kategori;
+}
+
 function closeAsetModal() { document.getElementById('aset-modal').style.display = 'none'; document.body.style.overflow = ''; }
 
 function openCreateModal(kategori) {
     kategori = kategori || 'putra';
-    document.getElementById('modal-title').textContent = 'Tambah Aset MES ' + (kategori === 'putri' ? 'Putri' : 'Putra');
+    document.getElementById('modal-title').textContent = 'Tambah Aset ' + kategoriLabel(kategori);
     document.getElementById('form-method').value = 'POST';
     document.getElementById('form-submit-btn').textContent = 'Tambah';
     document.getElementById('aset-form').action = '{{ route("koordinator.aset-mes.index") }}';
@@ -315,7 +353,7 @@ function openEditModal(id) {
 function openDetailModal(id) {
     const a = assets.find(x => x.id === id);
     if (!a) return;
-    document.getElementById('detail_kategori').textContent = a.kategori === 'putri' ? 'Mes Putri' : 'Mes Putra';
+    document.getElementById('detail_kategori').textContent = kategoriLabel(a.kategori);
     document.getElementById('detail_nama_aset').textContent = a.nama_aset;
     document.getElementById('detail_jumlah').textContent = a.jumlah || '-';
     document.getElementById('detail_keterangan').textContent = a.keterangan || '-';

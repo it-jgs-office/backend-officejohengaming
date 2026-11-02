@@ -415,12 +415,12 @@ class ExportController extends Controller
     protected function asetMesExport($filter = 'all')
     {
         $query = AsetMes::with('penanggungJawab')->orderBy('nama_aset');
-        if (in_array($filter, ['putra', 'putri'])) {
+        if (in_array($filter, array_keys(AsetMes::KATEGORI_LABELS), true)) {
             $query->where('kategori', $filter);
         }
         $data = $query->get()->map(fn ($a) => [
             'Nama Aset' => $a->nama_aset,
-            'Kategori' => ucfirst($a->kategori),
+            'Kategori' => AsetMes::KATEGORI_LABELS[$a->kategori] ?? ucfirst($a->kategori),
             'Jumlah' => $a->jumlah,
             'Penanggung Jawab' => $a->penanggungJawab?->name ?? AsetMes::PENANGGUNG_JAWAB_MES[$a->kategori] ?? '-',
             'PIC' => $a->pic ?? '-',

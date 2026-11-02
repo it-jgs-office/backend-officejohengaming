@@ -87,10 +87,28 @@ class AsetMesController extends Controller
             ])
             ->values();
 
+        $additionalCategories = [];
+        foreach (['koordinator', 'johen_streamer'] as $kategori) {
+            $search = trim((string) $request->input('search_'.$kategori, ''));
+            $query = AsetMes::with('penanggungJawab')->where('kategori', $kategori);
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama_aset', 'like', "%{$search}%")
+                        ->orWhere('pic', 'like', "%{$search}%");
+                });
+            }
+            $additionalCategories[$kategori] = [
+                'label' => AsetMes::KATEGORI_LABELS[$kategori],
+                'search' => $search,
+                'assets' => $query->orderByDesc('created_at')->paginate(10, ['*'], 'page_'.$kategori)->withQueryString(),
+            ];
+        }
+
         return view('admin.aset-mes.index', [
             'assetsPutra' => $assetsPutra,
             'assetsPutri' => $assetsPutri,
             'assetsJson' => $assetsJson,
+            'additionalCategories' => $additionalCategories,
             'stats' => $stats,
             'alertItems' => $alertItems,
             'alertJson' => $alertJson,
@@ -108,7 +126,7 @@ class AsetMesController extends Controller
     {
         $data = $request->validate([
             'nama_aset' => 'required|string|max:255',
-            'kategori' => 'required|in:putra,putri',
+            'kategori' => 'required|in:putra,putri,koordinator,johen_streamer',
             'jumlah' => 'nullable|integer|min:1',
             'penanggung_jawab' => 'nullable|exists:users,id',
             'pic' => 'nullable|string|max:255',
@@ -127,7 +145,7 @@ class AsetMesController extends Controller
     {
         $rules = [
             'nama_aset' => 'sometimes|required|string|max:255',
-            'kategori' => 'sometimes|in:putra,putri',
+            'kategori' => 'sometimes|in:putra,putri,koordinator,johen_streamer',
             'jumlah' => 'nullable|integer|min:1',
             'penanggung_jawab' => 'nullable|exists:users,id',
             'pic' => 'nullable|string|max:255',

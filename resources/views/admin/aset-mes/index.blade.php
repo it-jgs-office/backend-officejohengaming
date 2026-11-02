@@ -2,7 +2,7 @@
 @section('body-class', 'page-admin page-aset-mes')
 @section('title', 'Aset MES')
 @section('page-title', 'Data Aset > Aset MES')
-@section('page-subtitle', 'Daftar aset MES Putra & Putri dan perlengkapan perusahaan')
+@section('page-subtitle', 'Daftar aset MES Putra, Putri, Koordinator, dan Johen Streamer')
 @section('sidebar-menu') @include('partials.sidebar-admin') @endsection
 
 @section('content')
@@ -349,6 +349,45 @@
             </div>
         </div>
     </div>
+    @foreach($additionalCategories as $kategori => $group)
+    <div class="gaming-card" style="overflow:visible;">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-color);">
+            <div>
+                <div style="font-weight:600;font-size:0.85rem;color:var(--text-primary);">Data Aset {{ $group['label'] }}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">{{ $group['assets']->total() }} data aset</div>
+            </div>
+            @if(!in_array(auth()->user()->role, ['gm', 'ceo']))
+            <button type="button" onclick="openCreateModal('{{ $kategori }}')" class="btn btn-primary btn-sm">Tambah Aset</button>
+            @endif
+        </div>
+        <div class="px-6 py-2.5 flex items-center gap-3" style="border-bottom:1px solid var(--border-color);">
+            <form method="GET" action="{{ route('admin.aset-mes.index') }}" class="flex-1 max-w-[260px]">
+                <input type="text" name="search_{{ $kategori }}" value="{{ $group['search'] }}" placeholder="Cari aset..." class="w-full px-3 py-1.5 rounded-lg text-xs" style="background:var(--bg-surface);border:1px solid var(--border-color);color:var(--text-primary);">
+            </form>
+            <a href="{{ route('admin.export', ['type' => 'aset-mes', 'filter' => $kategori]) }}" class="btn btn-secondary btn-sm">Export</a>
+        </div>
+        <div class="table-responsive">
+            <table class="gaming-table min-w-[700px]"><thead><tr><th>No</th><th>Nama Aset</th><th>Jumlah</th><th>Penanggung Jawab</th><th>Status</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+                <tbody>
+                @forelse($group['assets'] as $a)
+                    <tr>
+                        <td>{{ $group['assets']->firstItem() + $loop->index }}</td><td>{{ $a->nama_aset }}</td><td>{{ $a->jumlah }}</td>
+                        <td>{{ $a->penanggungJawab?->name ?? $a->pic ?? '-' }}</td>
+                        <td><span class="badge {{ $a->is_active ? 'badge-green' : 'badge-red' }}">{{ $a->is_active ? 'Aktif' : 'Tidak Aktif' }}</span></td>
+                        <td>{{ $a->keterangan ?? '-' }}</td>
+                        <td class="whitespace-nowrap"><button type="button" onclick="showDetail({{ $a->id }})" class="btn btn-secondary btn-sm">Detail</button> <button type="button" onclick="openEditModal({{ $a->id }})" class="btn btn-secondary btn-sm">Edit</button>
+                            <form method="POST" action="{{ route('admin.aset-mes.destroy', $a) }}" style="display:inline" onsubmit="confirmSubmit(event, this)" data-confirm="Hapus aset MES ini?">@csrf @method('DELETE')<button class="btn btn-secondary btn-sm" type="submit">Hapus</button></form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada aset {{ $group['label'] }}.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($group['assets']->hasPages())<div class="px-5 py-3">{{ $group['assets']->links() }}</div>@endif
+    </div>
+    @endforeach
 </div>
 
 {{-- Detail Modal --}}
@@ -387,6 +426,8 @@
                         <select name="kategori" id="f-kategori" required class="gaming-input gaming-select">
                             <option value="putra">Mes Putra</option>
                             <option value="putri">Mes Putri</option>
+                            <option value="koordinator">MES Koordinator</option>
+                            <option value="johen_streamer">MES Johen Streamer</option>
                         </select>
                     </div>
                     <div class="field-group">
@@ -470,6 +511,10 @@
 const assets = @json($assetsJson);
 const alertData = @json($alertJson);
 
+function kategoriLabel(kategori) {
+    return ({putra:'Mes Putra', putri:'Mes Putri', koordinator:'MES Koordinator', johen_streamer:'MES Johen Streamer'})[kategori] || kategori;
+}
+
 function showAlertPopup() {
     const title = document.getElementById('alert-popup-title');
     const body = document.getElementById('alert-popup-body');
@@ -485,7 +530,7 @@ function showAlertPopup() {
             return '<div class="flex items-center gap-3 px-4 py-3.5 rounded-xl" style="border:1px solid var(--border-color);margin-bottom:8px;cursor:pointer;transition:all 0.15s;background:var(--bg-surface-2);" onclick="openEditModal(' + a.id + ')" onmouseover="this.style.borderColor=\'' + color + '\'" onmouseout="this.style.borderColor=\'var(--border-color)\'">' +
                 '<div class="flex-1 min-w-0">' +
                     '<p style="font-weight:600;font-size:14px;color:var(--text-primary);margin:0;">' + a.nama_aset + '</p>' +
-                    '<p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">' + (a.kategori === 'putra' ? 'Mes Putra' : 'Mes Putri') + ' — PIC: ' + (a.pic || '-') + '</p>' +
+                    '<p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">' + kategoriLabel(a.kategori) + ' — PIC: ' + (a.pic || '-') + '</p>' +
                     '<p style="font-size:11px;color:#ef4444;margin:4px 0 0;font-weight:600;">Tidak Aktif</p>' +
                 '</div>' +
                 '<span onclick="event.stopPropagation()"><button onclick="openEditModal(' + a.id + ')" style="flex-shrink:0;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:' + color + ';color:#fff;box-shadow:0 4px 12px rgba(239,68,68,0.3);" onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">Perbaiki</button></span>' +
@@ -543,13 +588,14 @@ function showDetail(id) {
     if (!a) return;
     document.getElementById('detail-title').textContent = a.nama_aset;
 
-    const kategoriBadge = a.kategori === 'putri'
-        ? '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold" style="background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;">Mes Putri</span>'
-        : '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Mes Putra</span>';
+    const kategoriStyle = a.kategori === 'putri'
+        ? 'background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;'
+        : 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
+    const kategoriBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold" style="' + kategoriStyle + '">' + kategoriLabel(a.kategori) + '</span>';
 
     const rows = [
         { label: 'Nama Aset', value: a.nama_aset },
-        { label: 'Kategori', value: a.kategori },
+        { label: 'Kategori', value: kategoriLabel(a.kategori) },
         { label: 'Jumlah', value: a.jumlah },
         { label: 'Penanggung Jawab', value: a.penanggung_jawab_nama },
         { label: 'PIC', value: a.pic || '-' },
@@ -583,7 +629,7 @@ document.getElementById('detail-modal')?.addEventListener('click', function(e) {
 
 function openCreateModal(kategori) {
     kategori = kategori || 'putra';
-    document.getElementById('modal-title').textContent = 'Tambah Aset MES ' + (kategori === 'putri' ? 'Putri' : 'Putra');
+    document.getElementById('modal-title').textContent = 'Tambah Aset ' + kategoriLabel(kategori);
     document.getElementById('form-method').value = 'POST';
     document.getElementById('form-id').value = '';
     document.getElementById('form-submit-btn').textContent = 'Tambah';

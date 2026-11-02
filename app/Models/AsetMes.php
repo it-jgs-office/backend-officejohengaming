@@ -9,6 +9,15 @@ class AsetMes extends Model
     public const PENANGGUNG_JAWAB_MES = [
         'putra' => 'Ridwan Hasan Maulana',
         'putri' => 'Yuliana Sventy Yasmine Aulhia Sugiat',
+        'koordinator' => 'Koordinator',
+        'johen_streamer' => 'Johen Streamer',
+    ];
+
+    public const KATEGORI_LABELS = [
+        'putra' => 'Mes Putra',
+        'putri' => 'Mes Putri',
+        'koordinator' => 'MES Koordinator',
+        'johen_streamer' => 'MES Johen Streamer',
     ];
 
     protected $table = 'aset_mes';

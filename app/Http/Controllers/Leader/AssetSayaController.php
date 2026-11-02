@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Leader;
 
 use App\Http\Controllers\Controller;
 use App\Models\AsetMes;
+use App\Models\AsetRuko;
 use App\Models\AsetSaya;
 use App\Models\AsetTim;
+use App\Models\Asset;
 use App\Models\DigitalAsset;
 use App\Models\PeralatanKantor;
 use App\Models\SimCard;
@@ -69,14 +71,73 @@ class AssetSayaController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('leader.asset-saya.index', compact('paginator', 'assets', 'kategoriCounts', 'allKategoris', 'asetSaya'));
+        $normalizedIdentifiers = collect($userIdentifiers)->map(fn ($value) => mb_strtolower(trim($value)))->filter()->unique()->values();
+        $byPic = fn ($query) => $query->where(function ($picQuery) use ($normalizedIdentifiers) {
+            foreach ($normalizedIdentifiers as $identifier) {
+                $picQuery->orWhereRaw('LOWER(TRIM(pic)) = ?', [$identifier]);
+            }
+        });
+        $assetChoices = [
+            'Data Aset' => Asset::where('is_active', true)->orderBy('name')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->name,
+                'description' => $asset->description,
+                'quantity' => $asset->quantity,
+            ])->values(),
+            'Kendaraan' => $byPic(Vehicle::query())->orderBy('nama_kendaraan')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama_kendaraan,
+                'description' => collect([$asset->jenis_kendaraan, $asset->merk_tipe, $asset->plat_nomor, $asset->keperluan])->filter()->implode(' | '),
+                'quantity' => 1,
+            ])->values(),
+            'Digital' => $byPic(DigitalAsset::query())->orderBy('nama_aset')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama_aset,
+                'description' => collect([$asset->email, $asset->keperluan])->filter()->implode(' | '),
+                'quantity' => 1,
+            ])->values(),
+            'Sosial Media' => $byPic(SosialMedia::query())->orderBy('nama')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama,
+                'description' => collect([$asset->platform, $asset->username, $asset->ket])->filter()->implode(' | '),
+                'quantity' => 1,
+            ])->values(),
+            'SIM Card' => $byPic(SimCard::query())->orderBy('nomor_sim_card')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nomor_sim_card,
+                'description' => $asset->keperluan,
+                'quantity' => 1,
+            ])->values(),
+            'Peralatan Kantor' => $byPic(PeralatanKantor::query())->orderBy('nama_barang')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama_barang,
+                'description' => collect([$asset->detail, $asset->keterangan, $asset->lokasi_unit, $asset->ruangan])->filter()->implode(' | '),
+                'quantity' => $asset->jumlah,
+            ])->values(),
+            'Aset Ruko' => AsetRuko::orderBy('nama_aset')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama_aset,
+                'description' => collect([$asset->lokasi, $asset->kondisi])->filter()->implode(' | '),
+                'quantity' => $asset->jumlah,
+            ])->values(),
+            'Aset MES' => AsetMes::where(function ($query) use ($userId, $byPic) {
+                $query->where('penanggung_jawab', $userId)->orWhere($byPic);
+            })->orderBy('nama_aset')->get()->map(fn ($asset) => [
+                'id' => $asset->id,
+                'name' => $asset->nama_aset,
+                'description' => collect([$asset->kategori, $asset->keterangan])->filter()->implode(' | '),
+                'quantity' => $asset->jumlah,
+            ])->values(),
+        ];
+
+        return view('leader.asset-saya.index', compact('paginator', 'assets', 'kategoriCounts', 'allKategoris', 'asetSaya', 'assetChoices'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'nama_aset' => 'required|string|max:255',
-            'jenis_aset' => 'nullable|string|max:255',
+            'jenis_aset' => 'required|in:Data Aset,Kendaraan,Digital,Sosial Media,SIM Card,Peralatan Kantor,Aset Ruko,Aset MES',
             'keterangan' => 'nullable|string',
             'daya' => 'nullable|string|max:255',
         ]);
@@ -199,7 +260,7 @@ class AssetSayaController extends Controller
         );
 
         $assets = $assets->merge(
-            PeralatanKantor::where('pic', $userName)->get()->map(fn ($p) => $this->mapItem($p, 'Peralatan Kantor', $p->nama_barang, $p->kode_aset ?? '-', $p->lokasi_unit, $p->pic ?? '-', $p->jabatan ?? '-', $p->atasan ?? '-', $p->created_at, ucfirst($p->kondisi)))
+            PeralatanKantor::with('maintenances')->where('pic', $userName)->get()->map(fn ($p) => $this->mapItem($p, 'Peralatan Kantor', $p->nama_barang, $p->kode_aset ?? '-', $p->lokasi_unit, $p->pic ?? '-', $p->jabatan ?? '-', $p->atasan ?? '-', $p->created_at, ucfirst($p->kondisi), $p->maintenances->first()?->maintenance_date?->format('Y-m-d')))
         );
 
         $assets = $assets->merge(
@@ -213,7 +274,7 @@ class AssetSayaController extends Controller
         return $assets;
     }
 
-    private function mapItem($model, string $kategori, string $namaAset, string $kodeAset, string $lokasi, string $pic, string $jabatan, ?string $atasan, $createdAt, string $status): array
+    private function mapItem($model, string $kategori, string $namaAset, string $kodeAset, string $lokasi, string $pic, string $jabatan, ?string $atasan, $createdAt, string $status, ?string $lastMaintenanceDate = null): array
     {
         return [
             'id' => $model->id,
@@ -226,6 +287,7 @@ class AssetSayaController extends Controller
             'atasan' => $atasan ?? '-',
             'created_at' => $createdAt,
             'status' => $status,
+            'last_maintenance_date' => $lastMaintenanceDate,
         ];
     }
 }

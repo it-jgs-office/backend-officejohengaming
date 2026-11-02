@@ -258,6 +258,7 @@
                         <th style="white-space:nowrap;font-size:0.7rem;">Jabatan Atasan</th>
                         <th style="white-space:nowrap;font-size:0.7rem;">Kode Asset</th>
                         <th style="white-space:nowrap;font-size:0.7rem;">Barcode</th>
+                        <th style="white-space:nowrap;font-size:0.7rem;">Servis Terakhir</th>
                         <th style="white-space:nowrap;font-size:0.7rem;">Kondisi</th>
                         <th style="white-space:nowrap;font-size:0.7rem;">Aksi</th>
                     </tr>
@@ -318,6 +319,7 @@
                                 @endif
                             @endif
                         </td>
+                        <td style="color:var(--text-muted);white-space:nowrap;font-size:0.75rem;">{{ $i->maintenances->first()?->maintenance_date?->format('d/m/Y') ?? '-' }}</td>
                         <td><span class="badge {{ $kondisiBadge }}">{{ $kondisiLabel }}</span></td>
                         <td>
                             <div class="flex items-center gap-1">
@@ -344,7 +346,7 @@
                     </tr>
                     @empty
                     <tr id="empty-row">
-                        <td colspan="27" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada data peralatan kantor.</td>
+                        <td colspan="28" style="text-align:center;padding:2rem;color:var(--text-muted);">Belum ada data peralatan kantor.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -397,6 +399,7 @@
                     Label
                 </button>
                 @if(auth()->user()->role !== 'gm' && auth()->user()->role !== 'ceo')
+                <button type="button" onclick="openMaintenanceModal(currentDetailId)" class="px-4 py-1.5 rounded-lg text-xs font-semibold" style="background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.3);cursor:pointer;">Catat Servis</button>
                 <button id="detail-edit-btn" onclick="openEditModal(currentDetailId)" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition" style="background:linear-gradient(135deg,#6c5cff,#8b7bff);color:#fff;border:none;cursor:pointer;">Edit</button>
                 <form id="detail-delete-form" method="POST" onsubmit="confirmSubmit(event, this)" data-confirm="Hapus peralatan ini?" data-action="{{ url('admin/peralatan-kantor') }}/" style="margin:0;">
                     @csrf @method('DELETE')
@@ -465,6 +468,29 @@
         {{-- Body --}}
         <div class="px-6 py-4 overflow-y-auto flex-1" id="detail-body" style="scrollbar-width:thin;"></div>
     </div>
+</div>
+
+{{-- Maintenance Modal --}}
+<div id="maintenance-modal" style="display:none;position:fixed;inset:0;z-index:70;align-items:center;justify-content:center;padding:16px;background:var(--bg-overlay);" onclick="if(event.target===this)closeMaintenanceModal()">
+    <form id="maintenance-form" class="w-full max-w-xl rounded-2xl shadow-2xl" style="background:var(--bg-surface);border:1px solid var(--border-color);padding:22px;" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold" style="color:var(--text-primary);">Catat Servis Aset</h3>
+            <button type="button" onclick="closeMaintenanceModal()" class="btn btn-secondary btn-sm">Tutup</button>
+        </div>
+        <p id="maintenance-asset-name" class="text-sm mb-4" style="color:var(--text-muted);"></p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="text-xs">Tanggal servis<input name="maintenance_date" type="date" required class="form-input" style="display:block;width:100%;margin-top:5px;"></label>
+            <label class="text-xs">Biaya (Rp)<input name="cost" type="number" min="0" step="0.01" class="form-input" style="display:block;width:100%;margin-top:5px;"></label>
+            <label class="text-xs">Vendor / teknisi<input name="vendor" maxlength="255" class="form-input" style="display:block;width:100%;margin-top:5px;"></label>
+            <label class="text-xs">Jadwal servis berikutnya<input name="next_maintenance_date" type="date" class="form-input" style="display:block;width:100%;margin-top:5px;"></label>
+            <label class="text-xs md:col-span-2">Keterangan servis<textarea name="description" required maxlength="5000" rows="3" class="form-input" style="display:block;width:100%;margin-top:5px;"></textarea></label>
+            <label class="text-xs md:col-span-2">Catatan tambahan<textarea name="notes" maxlength="5000" rows="2" class="form-input" style="display:block;width:100%;margin-top:5px;"></textarea></label>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button type="button" onclick="closeMaintenanceModal()" class="btn btn-secondary">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan Servis</button>
+        </div>
+    </form>
 </div>
 
 {{-- Label Preview Modal --}}
@@ -1359,6 +1385,7 @@ function rowHtml(i, idx) {
         '<td style="color:var(--text-muted);white-space:nowrap;font-size:0.75rem;">' + (i.jabatan_atasan || '') + '</td>' +
         '<td style="color:var(--color-accent);font-weight:500;font-family:monospace;font-size:0.7rem;white-space:nowrap;">' + (i.kode_aset || '') + '</td>' +
         barcodeCell +
+        '<td style="color:var(--text-muted);white-space:nowrap;font-size:0.75rem;">' + fmtTgl(i.last_maintenance_date) + '</td>' +
         '<td>' + kondisiBadgeInfo(i.kondisi) + '</td>' +
         aksi +
         '</tr>';
@@ -1381,7 +1408,7 @@ function applyItemSearch() {
     const results = itemsData.filter(i => itemSearchText(i).includes(q.toLowerCase()));
 
     if (results.length === 0) {
-        tbody.innerHTML = '<tr id="empty-row"><td colspan="27" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada hasil untuk "' + q + '".</td></tr>';
+        tbody.innerHTML = '<tr id="empty-row"><td colspan="28" style="text-align:center;padding:2rem;color:var(--text-muted);">Tidak ada hasil untuk "' + q + '".</td></tr>';
     } else {
         tbody.innerHTML = results.map(function (i, idx) { return rowHtml(i, idx + 1); }).join('');
     }
@@ -1552,6 +1579,17 @@ function renderDetailCards(i) {
         html += '</div></div>';
     });
     html += '</div>';
+    const history = Array.isArray(i.maintenance_history) ? i.maintenance_history : [];
+    const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+    html += '<section style="margin-top:18px;background:var(--bg-surface-2);border:1px solid var(--border-color);border-radius:14px;padding:18px;"><p style="color:var(--color-accent);font-size:.75rem;font-weight:700;margin-bottom:10px;">RIWAYAT SERVIS</p>';
+    if (!history.length) html += '<p style="font-size:.82rem;color:var(--text-muted);">Belum ada riwayat servis.</p>';
+    history.forEach(record => {
+        html += '<article style="padding:10px 0;border-top:1px solid var(--border-color);"><div style="display:flex;justify-content:space-between;gap:12px;"><strong style="color:var(--text-primary);font-size:.85rem;">' + escapeHtml(record.description || '-') + '</strong><span style="white-space:nowrap;color:var(--text-muted);font-size:.78rem;">' + escapeHtml(fmtTgl(record.maintenance_date)) + '</span></div>';
+        html += '<p style="margin-top:4px;color:var(--text-muted);font-size:.78rem;">Vendor: ' + escapeHtml(record.vendor || '-') + ' · Biaya: ' + escapeHtml(fmtRp(record.cost)) + (record.next_maintenance_date ? ' · Servis berikutnya: ' + escapeHtml(fmtTgl(record.next_maintenance_date)) : '') + '</p>';
+        if (record.notes) html += '<p style="margin-top:3px;color:var(--text-muted);font-size:.78rem;">' + escapeHtml(record.notes) + '</p>';
+        html += '</article>';
+    });
+    html += '</section>';
     return html;
 }
 
@@ -1658,6 +1696,45 @@ async function showDetail(id) {
 function closeDetail() {
     closeModal('detail-modal');
 }
+
+function openMaintenanceModal(id) {
+    const item = itemsData.find(x => x.id === id);
+    if (!item) return;
+    const form = document.getElementById('maintenance-form');
+    form.reset();
+    form.dataset.assetId = id;
+    document.getElementById('maintenance-asset-name').textContent = item.nama_barang + (item.pic ? ' · PIC: ' + item.pic : '');
+    form.elements.maintenance_date.value = new Date().toISOString().slice(0, 10);
+    openModal('maintenance-modal');
+}
+
+function closeMaintenanceModal() { closeModal('maintenance-modal'); }
+
+document.getElementById('maintenance-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('[type=submit]');
+    button.disabled = true;
+    try {
+        const response = await fetch(itemBaseUrl + '/' + form.dataset.assetId + '/maintenance', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: new FormData(form),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || Object.values(result.errors || {}).flat().join('\n') || 'Gagal menyimpan riwayat servis.');
+        const index = itemsData.findIndex(item => item.id === result.item.id);
+        if (index >= 0) itemsData[index] = result.item;
+        else itemsData.push(result.item);
+        closeMaintenanceModal();
+        await showDetail(result.item.id);
+        alert('Riwayat servis berhasil disimpan.');
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        button.disabled = false;
+    }
+});
 
 function downloadQrCode(id) {
     const i = itemsData.find(x => x.id === id);

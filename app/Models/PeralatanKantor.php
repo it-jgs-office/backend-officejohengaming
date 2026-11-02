@@ -68,6 +68,11 @@ class PeralatanKantor extends Model
         });
     }
 
+    public function maintenances()
+    {
+        return $this->hasMany(PeralatanKantorMaintenance::class)->orderByDesc('maintenance_date')->orderByDesc('id');
+    }
+
     public function scopeOfTim($query, ?string $tim)
     {
         if (! $tim) {

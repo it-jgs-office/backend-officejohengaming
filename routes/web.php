@@ -87,6 +87,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('digital-assets', DigitalAssetController::class)->except(['create', 'show', 'edit']);
     Route::resource('sim-cards', SimCardController::class)->except(['create', 'show', 'edit']);
     Route::resource('peralatan-kantor', PeralatanKantorController::class)->except(['create', 'show', 'edit']);
+    Route::post('peralatan-kantor/{peralatan_kantor}/maintenance', [PeralatanKantorController::class, 'storeMaintenance'])->name('peralatan-kantor.maintenance.store');
     Route::post('peralatan-kantor/import', [PeralatanKantorController::class, 'import'])->name('peralatan-kantor.import');
     Route::get('peralatan-kantor/template', [PeralatanKantorController::class, 'downloadTemplate'])->name('peralatan-kantor.template');
     Route::post('peralatan-kantor/scan', [PeralatanKantorController::class, 'scan'])->name('peralatan-kantor.scan');

@@ -101,6 +101,7 @@
                         <th>Kode Aset</th>
                         <th>Lokasi</th>
                         <th>Status</th>
+                        <th>Servis Terakhir</th>
                         <th>PIC</th>
                         <th>Jabatan PIC</th>
                         <th>Atasan</th>
@@ -128,6 +129,7 @@
                             @endphp
                             <span class="badge {{ $statusColor }}" style="font-size:0.65rem;">{{ $item['status'] }}</span>
                         </td>
+                        <td style="color:var(--text-muted);font-size:0.7rem;white-space:nowrap;">{{ !empty($item['last_maintenance_date']) ? \Carbon\Carbon::parse($item['last_maintenance_date'])->format('d M Y') : '-' }}</td>
                         <td style="color:var(--text-secondary);">{{ $item['pic'] }}</td>
                         <td style="color:var(--text-secondary);">{{ $item['jabatan'] }}</td>
                         <td style="color:var(--text-secondary);">{{ $item['atasan'] }}</td>
@@ -151,7 +153,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="11" style="text-align:center;padding:2.5rem;color:var(--text-muted);font-size:0.9rem;">
+                        <td colspan="12" style="text-align:center;padding:2.5rem;color:var(--text-muted);font-size:0.9rem;">
                             <div class="flex flex-col items-center gap-2">
                                 <svg class="w-10 h-10" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
@@ -180,20 +182,32 @@
             <div class="modal-modern-body">
                 <div class="space-y-4">
                     <div>
-                        <label class="gaming-label">Nama Aset <span style="color:#ef4444;">*</span></label>
-                        <input type="text" name="nama_aset" required class="gaming-input" placeholder="Nama aset">
+                        <label class="gaming-label">Jenis Aset <span style="color:#ef4444;">*</span></label>
+                        <select name="jenis_aset" id="add-asset-type" required class="gaming-input gaming-select">
+                            <option value="">Pilih jenis aset</option>
+                            @foreach(['Data Aset', 'Kendaraan', 'Digital', 'Sosial Media', 'SIM Card', 'Peralatan Kantor', 'Aset Ruko', 'Aset MES'] as $type)
+                            <option value="{{ $type }}">{{ $type }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div>
-                        <label class="gaming-label">Jenis Aset</label>
-                        <input type="text" name="jenis_aset" class="gaming-input" placeholder="Contoh: Peralatan">
+                        <label class="gaming-label">Pilih Data Aset</label>
+                        <select id="add-asset-source" class="gaming-input gaming-select" disabled>
+                            <option value="">Pilih jenis aset terlebih dahulu</option>
+                        </select>
+                        <p id="add-asset-source-hint" class="text-xs mt-1" style="color:var(--text-muted);">Pilih data yang sudah tercatat di menu admin untuk mengisi formulir otomatis.</p>
+                    </div>
+                    <div>
+                        <label class="gaming-label">Nama Aset <span style="color:#ef4444;">*</span></label>
+                        <input type="text" name="nama_aset" id="add-asset-name" required class="gaming-input" placeholder="Nama aset">
                     </div>
                     <div>
                         <label class="gaming-label">Keterangan</label>
-                        <textarea name="keterangan" class="gaming-input" rows="2" placeholder="Opsional"></textarea>
+                        <textarea name="keterangan" id="add-asset-description" class="gaming-input" rows="2" placeholder="Opsional"></textarea>
                     </div>
                     <div>
-                        <label class="gaming-label">Jumlah</label>
-                        <input type="text" name="daya" class="gaming-input" placeholder="Contoh: 2200 Watt">
+                        <label class="gaming-label">Jumlah / Daya</label>
+                        <input type="text" name="daya" id="add-asset-quantity" class="gaming-input" placeholder="Jumlah atau daya aset">
                     </div>
                 </div>
             </div>
@@ -437,6 +451,10 @@
                     <span class="text-xs" style="color:var(--text-muted);">Atasan</span>
                     <span class="text-xs" id="detail_atasan" style="color:var(--text-primary);"></span>
                 </div>
+                <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border-color);">
+                    <span class="text-xs" style="color:var(--text-muted);">Servis Terakhir</span>
+                    <span class="text-xs" id="detail_last_maintenance" style="color:var(--text-primary);"></span>
+                </div>
                 <div class="flex justify-between py-2">
                     <span class="text-xs" style="color:var(--text-muted);">Tanggal Dibuat</span>
                     <span class="text-xs" id="detail_tanggal" style="color:var(--text-primary);"></span>
@@ -465,6 +483,35 @@
 
 @push('scripts')
 <script>
+const assetChoicesByType = @json($assetChoices);
+const addAssetType = document.getElementById('add-asset-type');
+const addAssetSource = document.getElementById('add-asset-source');
+const addAssetSourceHint = document.getElementById('add-asset-source-hint');
+const addAssetName = document.getElementById('add-asset-name');
+const addAssetDescription = document.getElementById('add-asset-description');
+const addAssetQuantity = document.getElementById('add-asset-quantity');
+
+addAssetType.addEventListener('change', () => {
+    const choices = assetChoicesByType[addAssetType.value] || [];
+    addAssetSource.replaceChildren(new Option(choices.length ? 'Pilih data aset' : 'Belum ada data aset untuk jenis ini', ''));
+    choices.forEach((asset, index) => addAssetSource.add(new Option(asset.name, String(index))));
+    addAssetSource.disabled = choices.length === 0;
+    addAssetSourceHint.textContent = choices.length
+        ? `${choices.length} data aset tersedia. Pilih satu untuk mengisi formulir, lalu sesuaikan bila perlu.`
+        : 'Jenis aset tersimpan; detail dapat diisi secara manual.';
+    addAssetName.value = '';
+    addAssetDescription.value = '';
+    addAssetQuantity.value = '';
+});
+
+addAssetSource.addEventListener('change', () => {
+    const asset = (assetChoicesByType[addAssetType.value] || [])[Number(addAssetSource.value)];
+    if (!asset) return;
+    addAssetName.value = asset.name || '';
+    addAssetDescription.value = asset.description || '';
+    addAssetQuantity.value = asset.quantity ?? '';
+});
+
 function toggleDropdown(btn, id) {
     const all = document.querySelectorAll('.dropdown-menu');
     all.forEach(el => { if (el.id !== 'dropdown-' + id) el.style.display = 'none'; });
@@ -534,6 +581,7 @@ function openDetailModal(item) {
     document.getElementById('detail_pic').textContent = item.pic;
     document.getElementById('detail_jabatan').textContent = item.jabatan || '-';
     document.getElementById('detail_atasan').textContent = item.atasan || '-';
+    document.getElementById('detail_last_maintenance').textContent = item.last_maintenance_date ? new Date(item.last_maintenance_date + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) : (item.kategori === 'Peralatan Kantor' ? 'Belum pernah diservis' : '-');
     document.getElementById('detail_tanggal').textContent = item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) : '-';
     var statusEl = document.getElementById('detail_status');
     statusEl.innerHTML = '<span class="badge ' + (item.status === 'Aktif' || item.status === 'Baik' ? 'badge-green' : 'badge-red') + '" style="font-size:0.65rem;">' + item.status + '</span>';

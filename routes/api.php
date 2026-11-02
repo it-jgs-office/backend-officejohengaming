@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\Api\AsetMesApiController;
 use App\Http\Controllers\Api\AsetRukoApiController;
@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\DigitalAssetApiController;
 use App\Http\Controllers\Api\MeetingApiController;
+use App\Http\Controllers\Api\MeetingRequestIntegrationController;
 use App\Http\Controllers\Api\PaymentApprovalApiController;
 use App\Http\Controllers\Api\PembayaranApiController;
 use App\Http\Controllers\Api\PeralatanKantorApiController;
@@ -46,6 +47,14 @@ Route::middleware('api.auth')->group(function () {
     Route::get('meetings', [MeetingApiController::class, 'index']);
     Route::get('meetings/{meeting}', [MeetingApiController::class, 'show']);
     Route::get('weekly-meetings', [WeeklyMeetingApiController::class, 'index']);
+    // Trusted integration endpoints for the meeting request interface.
+    Route::prefix('integration')->group(function () {
+        Route::get('meeting-requests', [MeetingRequestIntegrationController::class, 'index']);
+        Route::post('meeting-requests', [MeetingRequestIntegrationController::class, 'store']);
+        Route::put('meeting-requests/{meeting}/approve', [MeetingRequestIntegrationController::class, 'approve']);
+        Route::put('meeting-requests/{meeting}/reject', [MeetingRequestIntegrationController::class, 'reject']);
+    });
+
 
     Route::apiResource('assets', AssetApiController::class)->parameters(['assets' => 'asset']);
     Route::apiResource('aset-ruko', AsetRukoApiController::class)->parameters(['aset_ruko' => 'ruko']);
@@ -88,3 +97,4 @@ Route::middleware('api.auth')->group(function () {
         Route::post('{id}/reject', [PaymentApprovalApiController::class, 'reject']);
     });
 });
+
